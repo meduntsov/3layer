@@ -7,3 +7,9 @@ button.active { background:#0047ab; color:white; }
 table { border-collapse: collapse; width: 100%; background:white; }
 th, td { border: 1px solid #ddd; padding: 6px; text-align:left; font-size:12px; }
 pre { background:#111; color:#0f0; padding:8px; }
+
+.director-panel { margin-top: 20px; background: #fff; border: 1px solid #ddd; padding: 12px; }
+.director-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.package-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.package-list button { width: 100%; text-align: left; }
+.package-relations { margin-top: 12px; }
