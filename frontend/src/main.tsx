@@ -46,12 +46,16 @@ const fieldLabels: Record<string, string> = {
   approvedAt: 'Согласовано',
   plannedStart: 'Плановое начало',
   plannedFinish: 'Плановое окончание',
+  actualStart: 'Фактическое начало',
+  actualFinish: 'Фактическое окончание',
   duration: 'Длительность',
   float: 'Резерв времени',
   isCritical: 'Критический путь',
   blockedItems: 'Блокирующие элементы',
   scenarioReadiness: 'Готовность сценариев',
-  criticalPathLength: 'Длина критического пути'
+  criticalPathLength: 'Длина критического пути',
+  tests: 'Тесты',
+  Tests: 'Тесты'
 }
 
 const valueTranslations: Record<string, string> = {
@@ -67,9 +71,17 @@ const valueTranslations: Record<string, string> = {
   // Integration
   'Core systems startup': 'Запуск базовых систем',
   'Security integration': 'Интеграция систем безопасности',
+  'Approve HVAC design': 'Утвердить проект ОВиК',
+  'Select UPS vendor': 'Выбрать поставщика ИБП',
+  Open: 'Открыто',
   // Work packages
   Planned: 'Запланирован',
   InProgress: 'В работе',
+  Installation: 'Монтаж',
+  Testing: 'Испытания',
+  NotReady: 'Не готово',
+  tests: 'Тесты',
+  Tests: 'Тесты',
   decisionBlocked: 'Блокируется решением',
   integrationRequired: 'Требуется интеграция',
   activities: 'Активности',
@@ -80,6 +92,7 @@ const valueTranslations: Record<string, string> = {
 
 const hiddenFieldsByTab: Partial<Record<TabKey, string[]>> = {
   wbs: ['id', 'projectId', 'parentId'],
+  packages: ['id', 'projectId', 'wbsElementId'],
   schedule: ['id', 'executionPackageId'],
   decisions: ['id', 'executionPackageId'],
   integration: ['id']
@@ -149,7 +162,7 @@ function App() {
     </section>}
 
     {tab === 'wbs' && <section className="card"><Table rows={data.wbs} hiddenFields={hiddenFieldsByTab.wbs} /></section>}
-    {tab === 'packages' && <section className="card"><Table rows={data.packages} /></section>}
+    {tab === 'packages' && <section className="card"><Table rows={data.packages} hiddenFields={hiddenFieldsByTab.packages} /></section>}
     {tab === 'schedule' && <section className="card"><Table rows={data.schedule} hiddenFields={hiddenFieldsByTab.schedule} /></section>}
     {tab === 'decisions' && <section className="card"><Table rows={data.decisions} hiddenFields={hiddenFieldsByTab.decisions} /></section>}
     {tab === 'integration' && <section className="card"><Table rows={data.integration} hiddenFields={hiddenFieldsByTab.integration} /></section>}
@@ -228,10 +241,32 @@ function translateValue(value: unknown) {
   return valueTranslations[String(value)] ?? String(value)
 }
 
+function formatDate(value: unknown) {
+  if (typeof value !== 'string') return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
+}
+
+function formatCellValue(key: string, value: unknown) {
+  if (key.toLowerCase().includes('date') || key.toLowerCase().includes('start') || key.toLowerCase().includes('finish') || key === 'createdAt' || key === 'approvedAt') {
+    return formatDate(value) ?? translateValue(value)
+  }
+
+  return translateValue(value)
+}
+
 function Table({ rows = [] as any[], hiddenFields = [] as string[] }) {
   if (!rows.length) return <p>Пусто</p>
   const keys = Object.keys(rows[0]).filter(k => !hiddenFields.includes(k))
-  return <table><thead><tr>{keys.map(k => <th key={k}>{fieldLabels[k] ?? translateValue(k)}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{keys.map(k => <td key={k}>{translateValue(r[k])}</td>)}</tr>)}</tbody></table>
+  return <table><thead><tr>{keys.map(k => <th key={k}>{fieldLabels[k] ?? translateValue(k)}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{keys.map(k => <td key={k}>{formatCellValue(k, r[k])}</td>)}</tr>)}</tbody></table>
 }
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)

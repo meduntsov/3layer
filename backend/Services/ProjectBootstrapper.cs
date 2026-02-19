@@ -8,7 +8,17 @@ public class ProjectBootstrapper(AppDbContext db)
 {
     public async Task EnsureDemoProjectAsync()
     {
-        if (await db.Projects.AnyAsync()) return;
+        var existingProject = await db.Projects.FirstOrDefaultAsync();
+        if (existingProject is not null)
+        {
+            if (existingProject.Name == "Demo Developer Platform")
+            {
+                existingProject.Name = "Фрунзенская";
+                await db.SaveChangesAsync();
+            }
+
+            return;
+        }
 
         var project = new Project { Id = Guid.NewGuid(), Name = "Фрунзенская", Status = "Active" };
         var wbsRows = new (string code, string name, string? parent)[]
