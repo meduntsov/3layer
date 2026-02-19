@@ -28,6 +28,8 @@ const tabs: Array<{ key: TabKey; label: string }> = [
 
 const fieldLabels: Record<string, string> = {
   id: 'ID',
+  projectId: 'ID проекта',
+  parentId: 'ID родителя',
   name: 'Название',
   code: 'Код',
   workType: 'Тип работ',
@@ -35,6 +37,13 @@ const fieldLabels: Record<string, string> = {
   wbsElementId: 'ID элемента WBS',
   status: 'Статус',
   executionPackageId: 'ID пакета исполнения',
+  decisionBlocked: 'Блокируется решением',
+  integrationRequired: 'Требуется интеграция',
+  activities: 'Активности',
+  decisions: 'Решения',
+  title: 'Название',
+  createdAt: 'Создано',
+  approvedAt: 'Согласовано',
   plannedStart: 'Плановое начало',
   plannedFinish: 'Плановое окончание',
   duration: 'Длительность',
@@ -43,6 +52,37 @@ const fieldLabels: Record<string, string> = {
   blockedItems: 'Блокирующие элементы',
   scenarioReadiness: 'Готовность сценариев',
   criticalPathLength: 'Длина критического пути'
+}
+
+const valueTranslations: Record<string, string> = {
+  // WBS
+  Design: 'Проектирование',
+  Procurement: 'Закупка',
+  Construction: 'Строительство',
+  HVAC: 'ОВиК',
+  Electrical: 'Электроснабжение',
+  'Access Control': 'Контроль доступа',
+  Commissioning: 'Пусконаладка',
+  Management: 'Управление',
+  // Integration
+  'Core systems startup': 'Запуск базовых систем',
+  'Security integration': 'Интеграция систем безопасности',
+  // Work packages
+  Planned: 'Запланирован',
+  InProgress: 'В работе',
+  decisionBlocked: 'Блокируется решением',
+  integrationRequired: 'Требуется интеграция',
+  activities: 'Активности',
+  decisions: 'Решения',
+  true: 'Да',
+  false: 'Нет'
+}
+
+const hiddenFieldsByTab: Partial<Record<TabKey, string[]>> = {
+  wbs: ['id', 'projectId', 'parentId'],
+  schedule: ['id', 'executionPackageId'],
+  decisions: ['id', 'executionPackageId'],
+  integration: ['id']
 }
 
 function App() {
@@ -108,11 +148,11 @@ function App() {
       <p>{ai || 'Отчет пока не сформирован.'}</p>
     </section>}
 
-    {tab === 'wbs' && <section className="card"><Table rows={data.wbs} /></section>}
+    {tab === 'wbs' && <section className="card"><Table rows={data.wbs} hiddenFields={hiddenFieldsByTab.wbs} /></section>}
     {tab === 'packages' && <section className="card"><Table rows={data.packages} /></section>}
-    {tab === 'schedule' && <section className="card"><Table rows={data.schedule} /></section>}
-    {tab === 'decisions' && <section className="card"><Table rows={data.decisions} /></section>}
-    {tab === 'integration' && <section className="card"><Table rows={data.integration} /></section>}
+    {tab === 'schedule' && <section className="card"><Table rows={data.schedule} hiddenFields={hiddenFieldsByTab.schedule} /></section>}
+    {tab === 'decisions' && <section className="card"><Table rows={data.decisions} hiddenFields={hiddenFieldsByTab.decisions} /></section>}
+    {tab === 'integration' && <section className="card"><Table rows={data.integration} hiddenFields={hiddenFieldsByTab.integration} /></section>}
 
     {role === 'ProjectDirector' && <ProjectDirectorPanel
       wbs={data.wbs}
@@ -164,7 +204,7 @@ function ProjectDirectorPanel({
                 className={selectedPackage?.id === pkg.id ? 'active' : ''}
                 onClick={() => onSelectPackage(pkg.id)}
               >
-                {pkg.name} ({pkg.status})
+                {translateValue(pkg.name)} ({translateValue(pkg.status)})
               </button>
             </li>
           ))}
@@ -177,17 +217,21 @@ function ProjectDirectorPanel({
           </p>
           <button onClick={onOpenSchedule}>Открыть полный график</button>
           <h4>Активности графика выбранного пакета</h4>
-          <Table rows={packageSchedule} />
+          <Table rows={packageSchedule} hiddenFields={hiddenFieldsByTab.schedule} />
         </div>}
       </div>
     </div>
   </section>
 }
 
-function Table({ rows = [] as any[] }) {
+function translateValue(value: unknown) {
+  return valueTranslations[String(value)] ?? String(value)
+}
+
+function Table({ rows = [] as any[], hiddenFields = [] as string[] }) {
   if (!rows.length) return <p>Пусто</p>
-  const keys = Object.keys(rows[0])
-  return <table><thead><tr>{keys.map(k => <th key={k}>{fieldLabels[k] ?? k}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{keys.map(k => <td key={k}>{String(r[k])}</td>)}</tr>)}</tbody></table>
+  const keys = Object.keys(rows[0]).filter(k => !hiddenFields.includes(k))
+  return <table><thead><tr>{keys.map(k => <th key={k}>{fieldLabels[k] ?? translateValue(k)}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{keys.map(k => <td key={k}>{translateValue(r[k])}</td>)}</tr>)}</tbody></table>
 }
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)

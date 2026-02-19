@@ -10,7 +10,7 @@ public class ProjectBootstrapper(AppDbContext db)
     {
         if (await db.Projects.AnyAsync()) return;
 
-        var project = new Project { Id = Guid.NewGuid(), Name = "Демо-проект платформы разработки", Status = "Active" };
+        var project = new Project { Id = Guid.NewGuid(), Name = "Фрунзенская", Status = "Active" };
         var wbsRows = new (string code, string name, string? parent)[]
         {
             ("01", "Проектирование", null),
