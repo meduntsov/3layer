@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import './styles.css'
 
@@ -7,13 +7,48 @@ type WbsElement = { id: string; code: string; name: string; workType: string; sy
 type WorkPackage = { id: string; wbsElementId: string; name: string; status: string }
 type ScheduleActivity = { id: string; executionPackageId: string; name: string; plannedStart: string; plannedFinish: string; duration: number; float: number; isCritical: boolean }
 
-const roles = ['Investor','ProjectDirector','TechnicalCustomer','CommissioningManager','AssetManager']
-const tabs = ['Dashboard','WBS Explorer','Packages','Schedule','Decisions','Integration']
+type TabKey = 'dashboard' | 'wbs' | 'packages' | 'schedule' | 'decisions' | 'integration'
+
+const roles = [
+  { value: 'Investor', label: 'Инвестор' },
+  { value: 'ProjectDirector', label: 'Директор проекта' },
+  { value: 'TechnicalCustomer', label: 'Технический заказчик' },
+  { value: 'CommissioningManager', label: 'Менеджер ПНР' },
+  { value: 'AssetManager', label: 'Менеджер эксплуатации' }
+]
+
+const tabs: Array<{ key: TabKey; label: string }> = [
+  { key: 'dashboard', label: 'Панель управления' },
+  { key: 'wbs', label: 'Структура работ (WBS)' },
+  { key: 'packages', label: 'Пакеты работ' },
+  { key: 'schedule', label: 'График' },
+  { key: 'decisions', label: 'Решения' },
+  { key: 'integration', label: 'Интеграции' }
+]
+
+const fieldLabels: Record<string, string> = {
+  id: 'ID',
+  name: 'Название',
+  code: 'Код',
+  workType: 'Тип работ',
+  systemDiscipline: 'Системная дисциплина',
+  wbsElementId: 'ID элемента WBS',
+  status: 'Статус',
+  executionPackageId: 'ID пакета исполнения',
+  plannedStart: 'Плановое начало',
+  plannedFinish: 'Плановое окончание',
+  duration: 'Длительность',
+  float: 'Резерв времени',
+  isCritical: 'Критический путь',
+  blockedItems: 'Блокирующие элементы',
+  scenarioReadiness: 'Готовность сценариев',
+  criticalPathLength: 'Длина критического пути'
+}
 
 function App() {
   const [project, setProject] = useState<Project | null>(null)
-  const [tab, setTab] = useState(tabs[0])
-  const [role, setRole] = useState(roles[0])
+  const [tab, setTab] = useState<TabKey>(tabs[0].key)
+  const [role, setRole] = useState(roles[0].value)
   const [data, setData] = useState<any>({})
   const [ai, setAi] = useState('')
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null)
@@ -31,8 +66,8 @@ function App() {
       fetch(`http://localhost:8080/api/schedule/${project.id}`).then(r => r.json()),
       fetch(`http://localhost:8080/api/decisions/${project.id}`).then(r => r.json()),
       fetch(`http://localhost:8080/api/integration/${project.id}`).then(r => r.json())
-    ]).then(([dashboard,wbs,packages,schedule,decisions,integration]) => {
-      setData({dashboard,wbs,packages,schedule,decisions,integration})
+    ]).then(([dashboard, wbs, packages, schedule, decisions, integration]) => {
+      setData({ dashboard, wbs, packages, schedule, decisions, integration })
       setSelectedPackageId(packages[0]?.id ?? null)
     })
   }, [project])
@@ -44,27 +79,40 @@ function App() {
     setAi(body.report)
   }
 
-  return <div className="page">
-    <h1>Developer Platform MVP</h1>
-    <div className="bar">
-      <label>Role: <select value={role} onChange={e => setRole(e.target.value)}>{roles.map(r => <option key={r}>{r}</option>)}</select></label>
-      <span>Project: {project?.name ?? 'loading...'}</span>
-      <button onClick={analyze}>Run AI analysis</button>
-    </div>
-    <div className="tabs">{tabs.map(t => <button key={t} onClick={() => setTab(t)} className={tab===t?'active':''}>{t}</button>)}</div>
+  const projectLabel = useMemo(() => project?.name ?? 'Загрузка...', [project])
 
-    {tab === 'Dashboard' && <section>
-      <h3>Critical Path / Blocked / Scenario Readiness</h3>
+  return <div className="page">
+    <header className="header-card">
+      <h1>Цифровая платформа управления проектом</h1>
+      <p>Единое пространство для контроля структуры работ, сроков, решений и интеграций.</p>
+    </header>
+
+    <div className="bar card">
+      <label>Роль:
+        <select value={role} onChange={e => setRole(e.target.value)}>
+          {roles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+        </select>
+      </label>
+      <span>Проект: <b>{projectLabel}</b></span>
+      <button onClick={analyze}>Запустить AI-анализ</button>
+    </div>
+
+    <div className="tabs">
+      {tabs.map(t => <button key={t.key} onClick={() => setTab(t.key)} className={tab === t.key ? 'active' : ''}>{t.label}</button>)}
+    </div>
+
+    {tab === 'dashboard' && <section className="card">
+      <h3>Критический путь / Блокировки / Готовность сценариев</h3>
       <pre>{JSON.stringify(data.dashboard, null, 2)}</pre>
-      <h3>AI report</h3>
-      <p>{ai || 'No report yet'}</p>
+      <h3>Отчет AI</h3>
+      <p>{ai || 'Отчет пока не сформирован.'}</p>
     </section>}
 
-    {tab === 'WBS Explorer' && <Table rows={data.wbs} />}
-    {tab === 'Packages' && <Table rows={data.packages} />}
-    {tab === 'Schedule' && <Table rows={data.schedule} />}
-    {tab === 'Decisions' && <Table rows={data.decisions} />}
-    {tab === 'Integration' && <Table rows={data.integration} />}
+    {tab === 'wbs' && <section className="card"><Table rows={data.wbs} /></section>}
+    {tab === 'packages' && <section className="card"><Table rows={data.packages} /></section>}
+    {tab === 'schedule' && <section className="card"><Table rows={data.schedule} /></section>}
+    {tab === 'decisions' && <section className="card"><Table rows={data.decisions} /></section>}
+    {tab === 'integration' && <section className="card"><Table rows={data.integration} /></section>}
 
     {role === 'ProjectDirector' && <ProjectDirectorPanel
       wbs={data.wbs}
@@ -72,7 +120,7 @@ function App() {
       schedule={data.schedule}
       selectedPackageId={selectedPackageId}
       onSelectPackage={setSelectedPackageId}
-      onOpenSchedule={() => setTab('Schedule')}
+      onOpenSchedule={() => setTab('schedule')}
     />}
   </div>
 }
@@ -97,18 +145,18 @@ function ProjectDirectorPanel({
   const selectedPackage = packages.find(p => p.id === selectedPackageId) ?? packages[0]
   const packageSchedule = schedule.filter(a => a.executionPackageId === selectedPackage?.id)
 
-  return <section className="director-panel">
-    <h2>Project Director workspace</h2>
-    <p>WBS and work packages with a direct transition to the project schedule.</p>
+  return <section className="director-panel card">
+    <h2>Рабочее место директора проекта</h2>
+    <p>Связь структуры работ и пакетов исполнения с оперативным переходом в календарный график.</p>
 
     <div className="director-grid">
       <div>
-        <h3>WBS</h3>
+        <h3>Структура работ (WBS)</h3>
         <Table rows={wbs} />
       </div>
 
       <div>
-        <h3>Work packages</h3>
+        <h3>Пакеты работ</h3>
         {packages.length ? <ul className="package-list">
           {packages.map(pkg => (
             <li key={pkg.id}>
@@ -120,15 +168,15 @@ function ProjectDirectorPanel({
               </button>
             </li>
           ))}
-        </ul> : <p>empty</p>}
+        </ul> : <p>Пусто</p>}
 
         {selectedPackage && <div className="package-relations">
-          <h4>Package-schedule relation</h4>
+          <h4>Связь пакета с графиком</h4>
           <p>
-            Package <b>{selectedPackage.name}</b> is connected to {packageSchedule.length} schedule activities.
+            Пакет <b>{selectedPackage.name}</b> связан с {packageSchedule.length} активностями графика.
           </p>
-          <button onClick={onOpenSchedule}>Open full schedule</button>
-          <h4>Schedule activities for selected package</h4>
+          <button onClick={onOpenSchedule}>Открыть полный график</button>
+          <h4>Активности графика выбранного пакета</h4>
           <Table rows={packageSchedule} />
         </div>}
       </div>
@@ -137,9 +185,9 @@ function ProjectDirectorPanel({
 }
 
 function Table({ rows = [] as any[] }) {
-  if (!rows.length) return <p>empty</p>
+  if (!rows.length) return <p>Пусто</p>
   const keys = Object.keys(rows[0])
-  return <table><thead><tr>{keys.map(k => <th key={k}>{k}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{keys.map(k => <td key={k}>{String(r[k])}</td>)}</tr>)}</tbody></table>
+  return <table><thead><tr>{keys.map(k => <th key={k}>{fieldLabels[k] ?? k}</th>)}</tr></thead><tbody>{rows.map((r, i) => <tr key={i}>{keys.map(k => <td key={k}>{String(r[k])}</td>)}</tr>)}</tbody></table>
 }
 
 createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)
