@@ -92,44 +92,13 @@ app.MapPost("/api/ai/analyze", async (Guid projectId, AppDbContext db, AiService
 {
     var packages = await db.ExecutionPackages.Where(x => x.ProjectId == projectId).ToListAsync();
     var packageIds = packages.Select(x => x.Id).ToHashSet();
-    var scenarios = await db.OperationalScenarios.Where(s => s.ProjectId == projectId).ToListAsync();
-    var scenarioIds = scenarios.Select(s => s.Id).ToHashSet();
-    var scenarioPackageLinks = await db.ScenarioPackages
-        .Where(sp => scenarioIds.Contains(sp.ScenarioId) && packageIds.Contains(sp.ExecutionPackageId))
-        .ToListAsync();
-
-    var packageRefs = packages.Select(p => new
-    {
-        p.Id,
-        p.Name,
-        p.Status,
-        Link = $"/api/packages/{projectId}#package-{p.Id}"
-    }).ToList();
-
-    var scenarioRefs = scenarios.Select(s => new
-    {
-        s.Id,
-        s.Name,
-        s.Status,
-        Link = $"/api/integration/{projectId}#scenario-{s.Id}"
-    }).ToList();
-
     var payload = new
     {
-        packages = packageRefs,
+        packages,
         activities = await db.ScheduleActivities.Where(a => packageIds.Contains(a.ExecutionPackageId)).Select(a => new { a.Name, a.Duration, a.Float, a.IsCritical }).ToListAsync(),
         openDecisions = await db.DecisionItems.Where(d => packageIds.Contains(d.ExecutionPackageId) && d.Status == "Open")
             .Select(d => new { d.Title, DecisionAge = (DateTime.UtcNow - d.CreatedAt).Days }).ToListAsync(),
-        scenarios = scenarioRefs,
-        scenarioPackageLinks = scenarioPackageLinks.Select(link => new
-        {
-            ScenarioId = link.ScenarioId,
-            ScenarioName = scenarios.First(s => s.Id == link.ScenarioId).Name,
-            ScenarioLink = $"/api/integration/{projectId}#scenario-{link.ScenarioId}",
-            PackageId = link.ExecutionPackageId,
-            PackageName = packages.First(p => p.Id == link.ExecutionPackageId).Name,
-            PackageLink = $"/api/packages/{projectId}#package-{link.ExecutionPackageId}"
-        }).ToList()
+        scenarios = await db.OperationalScenarios.Where(s => s.ProjectId == projectId).Select(s => new { s.Name, s.Status }).ToListAsync()
     };
 
     var text = await ai.AnalyzeAsync(payload);
